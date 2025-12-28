@@ -13,7 +13,7 @@ int main(int argc, char* argv[]){
         delta = stod(argv[2]);
     }
 
-    set <long double> points;
+    multiset <long double> points;
     queue <long double> order;
 
     long long edges = 0;
@@ -26,16 +26,17 @@ int main(int argc, char* argv[]){
 			long double y = order.front();
 			order.pop();
 			auto pos = std::distance(points.begin(), points.find(y));
-			auto yl = points.upper_bound(y - delta);
-			auto yr = points.lower_bound(y + delta);
+			auto yl = points.lower_bound(y - delta);
+			auto yr = points.upper_bound(y + delta);
 			int posl = std::distance(points.begin(), yl);
 			int posr = std::distance(points.begin(), yr) - 1;
 			edges -= posr - posl;
-			points.erase(y);
+			auto it = points.find(y);
+			points.erase(it);
 		}
 		order.push(x);
-		auto xl = points.upper_bound(x - delta);
-		auto xr = points.lower_bound(x + delta);
+		auto xl = points.lower_bound(x - delta);
+		auto xr = points.upper_bound(x + delta);
 		if(xl == xr){
 			points.insert(x);
 		}else{

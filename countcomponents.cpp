@@ -13,7 +13,7 @@ int main(int argc, char* argv[]){
         delta = stod(argv[2]);
     }
 
-    set <long double> points;
+    multiset <long double> points;
     queue <long double> order;
 
     long long components = 0;
@@ -41,7 +41,7 @@ int main(int argc, char* argv[]){
 				if(yr - y > delta && y - yl > delta)							components--;
 				else if(yr - y <= delta && y - yl <= delta && yr - yl > delta)	components++;
 			}
-			points.erase(y);
+			points.erase(it);
 		}
 		order.push(x);
 		points.insert(x);

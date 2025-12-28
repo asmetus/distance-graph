@@ -1,6 +1,8 @@
 #include <iostream>
 #include <random>
 #include <ctime>
+#include <vector>
+#include <cassert>
 #include <set>
 #include <queue>
 using namespace std;
@@ -30,61 +32,74 @@ private:
     }
     
     long long getSum(Node* node) {
-        return node ? node->sum : 0;
+        if (!node) return 0;
+        return node->sum + node->add * node->size;
     }
     
     void update(Node* node) {
         if (node) {
             node->size = 1 + getSize(node->left) + getSize(node->right);
-            node->sum = node->value + getSum(node->left) + getSum(node->right);
+            node->sum = node->value;
+            if (node->left) {
+                node->sum += getSum(node->left);
+            }
+            if (node->right) {
+                node->sum += getSum(node->right);
+            }
         }
     }
     
     void pushAdd(Node* node) {
-        if (node && node->add != 0) {
-            node->value += node->add;
-            node->sum += node->add * node->size;
-            
-            if (node->left) node->left->add += node->add;
-            if (node->right) node->right->add += node->add;
-            
-            node->add = 0;
+        if (!node || node->add == 0) return;
+        
+        node->value += node->add;
+        node->sum += node->add * node->size;
+        
+        if (node->left) {
+            node->left->add += node->add;
         }
+        if (node->right) {
+            node->right->add += node->add;
+        }
+        
+        node->add = 0;
     }
     
-    void split(Node* node, int key, Node*& left, Node*& right) {
+    void split(Node* node, int key, Node*& left, Node*& right, bool push = true) {
         if (!node) {
             left = right = nullptr;
             return;
         }
         
-        pushAdd(node);
+        if (push) pushAdd(node);
         int curKey = getSize(node->left);
         
         if (key <= curKey) {
-            split(node->left, key, left, node->left);
+            split(node->left, key, left, node->left, push);
             right = node;
         } else {
-            split(node->right, key - curKey - 1, node->right, right);
+            split(node->right, key - curKey - 1, node->right, right, push);
             left = node;
         }
         
         update(node);
     }
     
-    Node* merge(Node* left, Node* right) {
+    Node* merge(Node* left, Node* right, bool push = true) {
         if (!left) return right;
         if (!right) return left;
         
-        pushAdd(left);
-        pushAdd(right);
+        if (push) {
+            pushAdd(left);
+            pushAdd(right);
+        }
         
         if (left->priority > right->priority) {
-            left->right = merge(left->right, right);
+            left->right = merge(left->right, right, push);
             update(left);
             return left;
         } else {
-            right->left = merge(left, right->left);
+            right->left = merge(left, right->left, push);
             update(right);
             return right;
         }
@@ -107,7 +122,10 @@ private:
         split(node, pos, left, right);
         split(right, 1, mid, right);
         
-        delete mid;
+        if (mid) {
+            delete mid;
+        }
+        
         node = merge(left, right);
     }
     
@@ -121,7 +139,6 @@ private:
         
         if (mid) {
             mid->add += value;
-            pushAdd(mid);
         }
         
         node = merge(merge(left, mid), right);
@@ -135,7 +152,10 @@ private:
         split(node, l, left, right);
         split(right, r - l + 1, mid, right);
         
-        long long result = getSum(mid);
+        long long result = 0;
+        if (mid) {
+            result = getSum(mid);
+        }
         
         node = merge(merge(left, mid), right);
         return result;
@@ -155,6 +175,13 @@ private:
         
         update(node);
     }
+    
+    void clear(Node* node) {
+        if (!node) return;
+        clear(node->left);
+        clear(node->right);
+        delete node;
+    }
 
 public:
     ImplicitTreap() : root(nullptr) {}
@@ -162,6 +189,10 @@ public:
     ImplicitTreap(const vector<long long>& arr) {
         root = nullptr;
         build(root, arr, 0, arr.size() - 1);
+    }
+    
+    ~ImplicitTreap() {
+        clear(root);
     }
     
     void insert(int pos, long long value) {
@@ -178,17 +209,6 @@ public:
     
     long long getSumOnRange(int l, int r) {
         return querySum(root, l, r);
-    }
-    
-    int size() {
-        return getSize(root);
-    }
-    
-    void printArray() {
-        for (int i = 0; i < size(); i++) {
-            cout << getSumOnRange(i, i) << " ";
-        }
-        cout << endl;
     }
 };
 
@@ -211,30 +231,30 @@ int main(int argc, char* argv[]){
     	long double x;
 		cout << "Enter a new point: ";
         cin >> x;
+        if(x == -1) break;
 		if(order.size() == N){
 			long double y = order.front();
 			order.pop();
-			auto pos = std::distance(points.begin(), points.find(y));
-			auto yl = points.upper_bound(y - delta);
-			auto yr = points.lower_bound(y + delta);
+            auto it = points.find(y);
+			auto pos = std::distance(points.begin(), it);
+			auto yl = points.lower_bound(y - delta);
+			auto yr = points.upper_bound(y + delta);
 			int posl = std::distance(points.begin(), yl);
 			int posr = std::distance(points.begin(), yr) - 1;
 			triangles -= treap_left.getSumOnRange(0, posr) - treap_right.getSumOnRange(0, posl-1) -
 						 treap_left.getSumOnRange(pos, pos) - treap_right.getSumOnRange(pos, pos);
-			points.erase(y);
+			points.erase(it);
 			treap_left.addOnRange(pos+1, posr, -1);
 			treap_right.addOnRange(posl, pos-1, -1);
 			treap_left.erase(pos);
 			treap_right.erase(pos);
 		}
-		treap_left.printArray();
-		treap_right.printArray();
 		order.push(x);
-		auto xl = points.upper_bound(x - delta);
-		auto xr = points.lower_bound(x + delta);
+		auto xl = points.lower_bound(x - delta);
+		auto xr = points.upper_bound(x + delta);
 		if(xl == xr){
-			points.insert(x);
-			auto pos = std::distance(points.begin(), points.find(x));
+			auto it = points.insert(x);
+			auto pos = std::distance(points.begin(), it);
 			treap_left.insert(pos, 0);
 			treap_right.insert(pos, 0);
 		}else{
@@ -242,8 +262,8 @@ int main(int argc, char* argv[]){
 			int posl = std::distance(points.begin(), xl);
 			int posr = std::distance(points.begin(), xr);
 			triangles += treap_left.getSumOnRange(0, posr) - treap_right.getSumOnRange(0, posl-1);
-			points.insert(x);
-			auto pos = std::distance(points.begin(), points.find(x));
+			auto it = points.insert(x);
+			auto pos = std::distance(points.begin(), it);
 			treap_left.insert(pos, pos-posl);
 			treap_right.insert(pos, posr-pos+1);
 			treap_left.addOnRange(pos+1, posr+1, 1);
